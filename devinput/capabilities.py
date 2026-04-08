@@ -141,6 +141,6 @@ class Capabilities:
         elif isinstance(cap, EventType):
             return bool(mask & self.event_types_code)
         return False
-
+    
     def __contains__(self, cap):
         return self.has_cap(cap)

@@ -92,6 +92,12 @@ class Device:
         ):
             self.close()
 
+    def __enter__(self):
+        self.open()
+
+    def __exit__(self, *args):
+        self.close()
+
     @property
     def capabilities(self):
         if self._capabilities is None:
@@ -211,4 +217,12 @@ def list_devices():
     for device in os.listdir(DEVICE_PATH):
         if device.startswith("event"):
             device_list.append(Device.from_event(device))
+    return device_list
+
+def list_capable_devices(caps):
+    device_list = []
+    for device in list_devices():
+        with device:
+            if all(device.has_cap(cap) for cap in caps):
+                device_list.append(Device(device.event_path))
     return device_list
