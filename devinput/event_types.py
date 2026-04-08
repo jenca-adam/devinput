@@ -1,23 +1,5 @@
 import enum
-
-
-class UnknownEnumMember:
-    def __init__(self, enum_cls, value):
-        self.enum = enum_cls
-        self.value = value
-        self.name = "UNKNOWN"
-        self.__dict__.update(enum_cls.__dict__)
-
-    def __repr__(self):
-        return f"<{self.enum.__name__}.{self.name}: {self.value}>"
-
-
-class UnknownEnumMeta(enum.EnumMeta):
-    def __call__(cls, value, *args, **kwargs):
-        try:
-            return super().__call__(value, *args, **kwargs)
-        except ValueError:
-            return UnknownEnumMember(cls, value)
+from .utils import UnknownEnumMeta
 
 
 class SynEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
@@ -86,7 +68,7 @@ class KeyEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
     KEY_KPASTERISK = 55
     KEY_LEFTALT = 56
     KEY_SPACE = 57
-    KEY_EVENTSLOCK = 58
+    KEY_CAPSLOCK = 58
     KEY_F1 = 59
     KEY_F2 = 60
     KEY_F3 = 61
@@ -872,7 +854,7 @@ class SwEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
 
 class LedEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
     LED_NUML = 0x00
-    LED_EVENTSL = 0x01
+    LED_CAPSL = 0x01
     LED_SCROLLL = 0x02
     LED_COMPOSE = 0x03
     LED_KANA = 0x04
@@ -899,7 +881,7 @@ class SndEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
     SND_TONE = 0x02
 
 
-class EvEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
+class EventType(enum.IntEnum, metaclass=UnknownEnumMeta):
     EV_SYN = 0x00
     EV_KEY = 0x01
     EV_REL = 0x02
@@ -915,6 +897,7 @@ class EvEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
 
 
 class UnknownEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
+    _ = -1
     pass
 
 
@@ -927,4 +910,21 @@ EVENT_TYPES = {
     0x05: SwEvent,
     0x11: LedEvent,
     0x12: SndEvent,
+}
+
+MT_EVENTS = {
+    AbsEvent.ABS_MT_TOUCH_MAJOR,
+    AbsEvent.ABS_MT_TOUCH_MINOR,
+    AbsEvent.ABS_MT_WIDTH_MAJOR,
+    AbsEvent.ABS_MT_WIDTH_MINOR,
+    AbsEvent.ABS_MT_ORIENTATION,
+    AbsEvent.ABS_MT_POSITION_X,
+    AbsEvent.ABS_MT_POSITION_Y,
+    AbsEvent.ABS_MT_TOOL_TYPE,
+    AbsEvent.ABS_MT_BLOB_ID,
+    AbsEvent.ABS_MT_TRACKING_ID,
+    AbsEvent.ABS_MT_PRESSURE,
+    AbsEvent.ABS_MT_DISTANCE,
+    AbsEvent.ABS_MT_TOOL_X,
+    AbsEvent.ABS_MT_TOOL_Y,
 }

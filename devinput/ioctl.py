@@ -4,6 +4,8 @@ import functools
 import fcntl
 import _ctypes
 
+from .bus import BusType
+
 
 class IOC_DIR(enum.IntEnum):
     NONE = 1
@@ -40,6 +42,7 @@ def build_ev_write_request(nr, size):
 
 
 def _ioctl_read_factory(nr, target=None):
+
     def decorate(fun):
         if target is None:
 
@@ -56,6 +59,7 @@ def _ioctl_read_factory(nr, target=None):
 
             @functools.wraps(fun)
             def _ioctl_read(fd):
+
                 buffer = bytearray(ctypes.sizeof(target))
                 fcntl.ioctl(fd, request, buffer)
                 return target.from_buffer(buffer)
@@ -66,13 +70,15 @@ def _ioctl_read_factory(nr, target=None):
 
 
 def _ioctl_write_factory(nr, source=None):
+
     def decorate(fun):
         if source is None:
 
             @functools.wraps(fun)
             def _ioctl_write(fd, buffer):
+
                 request = build_ev_write_request(nr, len(buffer))
-                fcntl.ioctl(fd, buffer)
+                fcntl.ioctl(fd, request, buffer)
 
             return _ioctl_write
         else:
@@ -80,6 +86,7 @@ def _ioctl_write_factory(nr, source=None):
 
             @functools.wraps(fun)
             def _ioctl_write(fd, what):
+
                 if not isinstance(what, source):
                     what = source(what)
                 fcntl.ioctl(fd, request, bytes(what))
@@ -91,11 +98,15 @@ def _ioctl_write_factory(nr, source=None):
 
 class InputId(ctypes.Structure):
     _fields_ = [
-        ("bustype", ctypes.c_uint16),
+        ("_bustype", ctypes.c_uint16),
         ("vendor", ctypes.c_uint16),
         ("product", ctypes.c_uint16),
         ("version", ctypes.c_uint16),
     ]
+
+    @property
+    def bus_type(self):
+        return BusType(self._bustype)
 
 
 class InputKeymapEntry(ctypes.Structure):
@@ -199,134 +210,124 @@ class FfEffect(ctypes.Structure):
     ]
 
 
-@_ioctl_read_factory(0x01, ctypes.c_int)
-def GVERSION(fd):
-    pass
+class IoctlInterface:
+    def __init__(self, fd):
+        self.fd = fd
 
+    @_ioctl_read_factory(0x01, ctypes.c_int)
+    def GVERSION(self):
+        pass
 
-@_ioctl_read_factory(0x02, InputId)
-def GID(fd):
-    pass
+    @_ioctl_read_factory(0x02, InputId)
+    def GID(self):
+        pass
 
+    @_ioctl_read_factory(0x03, ctypes.c_uint * 2)
+    def GREP(self):
+        pass
 
-@_ioctl_read_factory(0x03, ctypes.c_uint * 2)
-def GREP(fd):
-    pass
+    @_ioctl_read_factory(0x04, ctypes.c_uint * 2)
+    def GKEYCODE(self):
+        pass
 
+    def GKEYCODE_V2(self, buffer):
+        assert len(buffer) == ctypes.sizeof(InputKeymapEntry)
+        request = build_ev_read_request(0x04, len(buffer))
+        fcntl.ioctl(self.fd, request, buffer)
 
-@_ioctl_write_factory(0x03, ctypes.c_uint * 2)
-def SREP(fd, what):
-    pass
+    @_ioctl_read_factory(0x06)
+    def GNAME(self, size):
+        pass
 
+    @_ioctl_read_factory(0x07)
+    def GPHYS(self, size):
+        pass
 
-@_ioctl_read_factory(0x04, ctypes.c_uint * 2)
-def GKEYCODE(fd):
-    pass
+    @_ioctl_read_factory(0x08)
+    def GUNIQ(self, size):
+        pass
 
+    @_ioctl_read_factory(0x09)
+    def GPROP(self, size):
+        pass
 
-@_ioctl_read_factory(0x04, InputKeymapEntry)
-def GKEYCODE_V2(fd):
-    pass
+    @_ioctl_read_factory(0x18)
+    def GKEY(self, size):
+        pass
 
+    @_ioctl_read_factory(0x19)
+    def GLED(self, size):
+        pass
 
-@_ioctl_write_factory(0x04, ctypes.c_uint * 2)
-def SKEYCODE(fd, what):
-    pass
+    @_ioctl_read_factory(0x1A)
+    def GSND(self, size):
+        pass
 
+    @_ioctl_read_factory(0x1B)
+    def GSW(self, size):
+        pass
 
-@_ioctl_write_factory(0x04, InputKeymapEntry)
-def SKEYCODE_V2(fd, what):
-    pass
+    @_ioctl_write_factory(0x03, ctypes.c_uint * 2)
+    def SREP(self, what):
+        pass
 
+    @_ioctl_write_factory(0x04, ctypes.c_uint * 2)
+    def SKEYCODE(self, what):
+        pass
 
-@_ioctl_read_factory(0x06)
-def GNAME(fd):
-    pass
+    @_ioctl_write_factory(0x04, InputKeymapEntry)
+    def SKEYCODE_V2(self, what):
+        pass
 
+    @_ioctl_write_factory(0x80, FfEffect)
+    def SFF(self, what):
+        pass
 
-@_ioctl_read_factory(0x07)
-def GPHYS(fd):
-    pass
+    @_ioctl_write_factory(0x81, ctypes.c_int)
+    def RMFF(self, what):
+        pass
 
+    @_ioctl_write_factory(0x90, ctypes.c_int)
+    def GRAB(self, what):
+        pass
 
-@_ioctl_read_factory(0x08)
-def GUNIQ(fd):
-    pass
+    @_ioctl_write_factory(0x91, ctypes.c_int)
+    def REVOKE(self, what):
+        pass
 
+    @_ioctl_write_factory(0xA0, ctypes.c_int)
+    def SCLOCKID(self, what):
+        pass
 
-@_ioctl_read_factory(0x09)
-def GPROP(fd):
-    pass
+    @_ioctl_read_factory(0x84, ctypes.c_int)
+    def GEFFECTS(self):
+        pass
 
+    def GMTSLOTS(self, code, num_slots):
+        class MtRequest(ctypes.Structure):
+            _pack_ = 1
+            _fields_ = [
+                ("code", ctypes.c_uint32),
+                ("values", ctypes.c_int32 * num_slots),
+            ]
 
-# ugh
-def GMTSLOTS(fd, num_slots):
-    class MtRequestLayout(ctypes.Structure):
-        _fields_ = [
-            ("code", ctypes.c_uint32),
-            ("values", ctypes.c_int32 * num_slots),
-        ]
+        buffer = bytearray(ctypes.sizeof(MtRequest))
+        mt_request = MtRequest.from_buffer(buffer)
+        mt_request.code = code
+        request = build_ev_read_request(0x0A, len(buffer))
+        fcntl.ioctl(self.fd, request, buffer)
+        return mt_request
 
-    return _ioctl_read_factory(0x0A, MtRequestLayout)(GMTSLOTS)(fd)
+    def GBIT(self, ev, length):
+        return _ioctl_read_factory(0x20 + ev)(lambda x, y: x)(self.fd, length)
 
+    def GABS(self, abs_code):
+        return _ioctl_read_factory(0x40 + abs_code, InputAbsInfo)(lambda x: x)(self.fd)
 
-@_ioctl_read_factory(0x18)
-def GKEY(fd):
-    pass
+    def SABS(self, abs_code, absinfo):
+        return _ioctl_write_factory(0xC0 + abs_code, InputAbsInfo)(lambda x, y: x)(
+            self.fd, absinfo
+        )
 
-
-@_ioctl_read_factory(0x19)
-def GLED(fd):
-    pass
-
-
-@_ioctl_read_factory(0x1A)
-def GSND(fd):
-    pass
-
-
-@_ioctl_read_factory(0x1B)
-def GSW(fd):
-    pass
-
-
-def GBIT(fd, ev, length):
-    return _ioctl_read_factory(0x20 + ev)(GBIT)(fd, length)
-
-
-def GABS(fd, abs):
-    return _ioctl_read_factory(0x40 + abs, InputAbsInfo)(GABS)(fd)
-
-
-def SABS(fd, abs, absinfo):
-    return _ioctl_write_factory(0xC0 + abs, InputAbsInfo)(SABS)(fd, absinfo)
-
-
-@_ioctl_write_factory(0x80, FfEffect)
-def SFF(fd, what):
-    pass
-
-
-@_ioctl_write_factory(0x81, ctypes.c_int)
-def RMFF(fd, what):
-    pass
-
-
-@_ioctl_read_factory(0x84, ctypes.c_int)
-def GEFFECTS(fd):
-    pass
-
-
-@_ioctl_write_factory(0x90, ctypes.c_int)
-def GRAB(fd, what):
-    pass
-
-
-@_ioctl_write_factory(0x91, ctypes.c_int)
-def REVOKE(fd, what):
-    pass
-
-
-@_ioctl_write_factory(0xA0, ctypes.c_int)
-def SCLOCKID(fd, what):
-    pass
+    def fileno(self):
+        return self.fd

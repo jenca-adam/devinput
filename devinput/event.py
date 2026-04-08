@@ -29,7 +29,7 @@ class Event(ctypes.Structure):
 
     @property
     def type(self):
-        return EvEvent(self._type)
+        return EventType(self._type)
 
     @property
     def code(self):

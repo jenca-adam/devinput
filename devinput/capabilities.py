@@ -1,7 +1,7 @@
 import os
 import enum
 from .utils import read_file_safe
-from . import evioc
+from . import ioctl
 from .event_types import *
 
 
@@ -25,9 +25,9 @@ def get_cap_set(cap_code, cap_enum):
 
 
 class Capabilities:
-    def __init__(self, path, event_fd):
+    def __init__(self, path, ioctl):
         self.path = path
-        self.event_fd = event_fd
+        self.ioctl = ioctl
 
         self.abs_path = os.path.join(path, "abs")
         self.ev_path = os.path.join(path, "ev")
@@ -40,7 +40,7 @@ class Capabilities:
         self.sw_path = os.path.join(path, "sw")
 
         self.abs_cap_code = parse_cap_file(self.abs_path)
-        self.ev_cap_code = parse_cap_file(self.ev_path)
+        self.event_types_code = parse_cap_file(self.ev_path)
         self.key_cap_code = parse_cap_file(self.key_path)
         self.led_cap_code = parse_cap_file(self.led_path)
         self.msc_cap_code = parse_cap_file(self.msc_path)
@@ -48,11 +48,12 @@ class Capabilities:
         self.snd_cap_code = parse_cap_file(self.snd_path)
         self.sw_cap_code = parse_cap_file(self.sw_path)
 
-        self._abs_cap = self._ev_cap = self._key_cap = self._led_cap = self._msc_cap = (
-            self._rel_cap
-        ) = self._snd_cap = self._sw_cap = self._syn_cap = None
+        self._abs_cap = self._event_types = self._key_cap = self._led_cap = (
+            self._msc_cap
+        ) = self._rel_cap = self._snd_cap = self._sw_cap = self._syn_cap = None
 
         self._syn_cap_code = None
+        self.ioctl = ioctl
 
     @property
     def abs_cap(self):
@@ -61,10 +62,10 @@ class Capabilities:
         return self._abs_cap
 
     @property
-    def ev_cap(self):
-        if self._ev_cap is None:
-            self._ev_cap = get_cap_set(self.ev_cap_code, EvEvent)
-        return self._ev_cap
+    def event_types(self):
+        if self._event_types is None:
+            self._event_types = get_cap_set(self.event_types_code, EventType)
+        return self._event_types
 
     @property
     def key_cap(self):
@@ -105,7 +106,7 @@ class Capabilities:
     @property
     def syn_cap_code(self):
         if self._syn_cap_code is None:
-            self._syn_cap_code = self._gbit(EvEvent.EV_SYN)
+            self._syn_cap_code = self._gbit(EventType.EV_SYN)
         return self._syn_cap_code
 
     @property
@@ -115,27 +116,30 @@ class Capabilities:
         return self._syn_cap
 
     def _gbit(self, ev):
-        length = 4
-        buf = evioc.GBIT(self.event_fd, ev, length)
+        length = 128  # should be enough even if new events get added
+        buf = self.ioctl.GBIT(ev, length)
         return int.from_bytes(buf, "little")
 
     def has_cap(self, cap):
+        mask = 1 << cap
         if isinstance(cap, SynEvent):
-            return bool(cap.value & self.syn_cap_code)
+            return bool(mask & self.syn_cap_code)
         elif isinstance(cap, KeyEvent):
-            return bool(cap.value & self.key_cap_code)
+            return bool(mask & self.key_cap_code)
         elif isinstance(cap, RelEvent):
-            return bool(cap.value & self.rel_cap_code)
+            return bool(mask & self.rel_cap_code)
         elif isinstance(cap, AbsEvent):
-            return bool(cap.value & self.abs_cap_code)
+            return bool(mask & self.abs_cap_code)
         elif isinstance(cap, MscEvent):
-            return bool(cap.value & self.msc_cap_code)
+            return bool(mask & self.msc_cap_code)
         elif isinstance(cap, SwEvent):
-            return bool(cap.value & self.sw_cap_code)
+            return bool(mask & self.sw_cap_code)
         elif isinstance(cap, LedEvent):
-            return bool(cap.value & self.led_cap_code)
+            return bool(mask & self.led_cap_code)
         elif isinstance(cap, SndEvent):
-            return bool(cap.value & self.snd_cap_code)
+            return bool(mask & self.snd_cap_code)
+        elif isinstance(cap, EventType):
+            return bool(mask & self.event_types_code)
         return False
 
     def __contains__(self, cap):
