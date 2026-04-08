@@ -1,0 +1,4 @@
+Metadata-Version: 2.4
+Name: devinput
+Version: 0.0.10
+Summary: read /dev/input devices
