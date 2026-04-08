@@ -68,6 +68,10 @@ class Device:
     def get_event(self):
         return Event.read(self.fd)
 
+    @_require_open
+    def send_event(self, event):
+        return event.write(self.fd)
+
     def iter_events(self):
         while self.poll():
             yield self.get_event()

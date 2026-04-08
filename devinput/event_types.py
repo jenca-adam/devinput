@@ -912,6 +912,17 @@ EVENT_TYPES = {
     0x12: SndEvent,
 }
 
+EVENT_ENUMS = {
+    SynEvent: EventType.EV_SYN,
+    KeyEvent: EventType.EV_KEY,
+    RelEvent: EventType.EV_REL,
+    AbsEvent: EventType.EV_ABS,
+    MscEvent: EventType.EV_MSC,
+    SwEvent: EventType.EV_SW,
+    LedEvent: EventType.EV_LED,
+    SndEvent: EventType.EV_SND,
+}
+
 MT_EVENTS = {
     AbsEvent.ABS_MT_TOUCH_MAJOR,
     AbsEvent.ABS_MT_TOUCH_MINOR,
