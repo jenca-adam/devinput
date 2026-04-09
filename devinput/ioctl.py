@@ -8,9 +8,9 @@ from .bus import BusType
 
 
 class IOC_DIR(enum.IntEnum):
-    NONE = 1
+    NONE = 0
+    WRITE = 1
     READ = 2
-    WRITE = 4
 
 
 _IOC_NRBITS = 8
@@ -69,7 +69,7 @@ def _ioctl_read_factory(nr, target=None):
     return decorate
 
 
-def _ioctl_write_factory(nr, source=None):
+def _ioctl_write_factory(nr, source=None, as_int=False):
 
     def decorate(fun):
         if source is None:
@@ -86,10 +86,13 @@ def _ioctl_write_factory(nr, source=None):
 
             @functools.wraps(fun)
             def _ioctl_write(fd, what):
-
                 if not isinstance(what, source):
                     what = source(what)
-                fcntl.ioctl(fd, request, bytes(what))
+                if as_int:
+                    what = what.value
+                else:
+                    what = bytes(what)
+                fcntl.ioctl(fd, request, what)
 
             return _ioctl_write
 
@@ -283,19 +286,19 @@ class IoctlInterface:
     def SFF(self, what):
         pass
 
-    @_ioctl_write_factory(0x81, ctypes.c_int)
+    @_ioctl_write_factory(0x81, ctypes.c_int, True)
     def RMFF(self, what):
         pass
 
-    @_ioctl_write_factory(0x90, ctypes.c_int)
+    @_ioctl_write_factory(0x90, ctypes.c_int, True)
     def GRAB(self, what):
         pass
 
-    @_ioctl_write_factory(0x91, ctypes.c_int)
+    @_ioctl_write_factory(0x91, ctypes.c_int, True)
     def REVOKE(self, what):
         pass
 
-    @_ioctl_write_factory(0xA0, ctypes.c_int)
+    @_ioctl_write_factory(0xA0, ctypes.c_int, True)
     def SCLOCKID(self, what):
         pass
 

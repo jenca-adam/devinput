@@ -2,12 +2,14 @@ import os
 import select
 import functools
 import ctypes
+import contextlib
 
 from .const import DEVICE_PATH, DEVICE_INFO_PATH, CAPABILITIES_PATH
 from .capabilities import Capabilities
 from .utils import read_file_safe
 from .event import Event
 from .ioctl import IoctlInterface, InputKeymapEntry
+from .props import Props
 from .event_types import *
 
 
@@ -94,6 +96,7 @@ class Device:
 
     def __enter__(self):
         self.open()
+        return self
 
     def __exit__(self, *args):
         self.close()
@@ -209,6 +212,32 @@ class Device:
             event_slots[event] = self.get_multi_touch_values(event, num_slots)
         return event_slots
 
+    @_require_open
+    def get_properties(self):
+        prop_bytes = self.ioctl.GPROP(16)
+        prop_mask = int.from_bytes(prop_bytes, "little")
+        props = set()
+        for prop in Props:
+            if (1 << prop.value) & prop_mask:
+                props.add(prop)
+        return props
+
+    @_require_open
+    def grab(self):
+        self.ioctl.GRAB(1)
+
+    @_require_open
+    def ungrab(self):
+        self.ioctl.GRAB(0)
+
+    @contextlib.contextmanager
+    @_require_open
+    def grabbed(self):
+        try:
+            yield self.grab()
+        finally:
+            self.ungrab()
+
     ### No force feedback for now, since I have no device to test it on.
 
 
@@ -218,6 +247,7 @@ def list_devices():
         if device.startswith("event"):
             device_list.append(Device.from_event(device))
     return device_list
+
 
 def list_capable_devices(caps):
     device_list = []
