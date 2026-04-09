@@ -196,9 +196,7 @@ class Device:
         keys_buffer = self.ioctl.GKEY(128)
         keys_mask = int.from_bytes(keys_buffer, "little")
         keys = set()
-        for (
-            key
-        ) in (
+        for key in (
             interesting or self.capabilities.key_cap
         ):  # it's not efficient to iterate through all 700 keys
             if (1 << key.value) & keys_mask:
@@ -212,7 +210,7 @@ class Device:
         leds_buffer = self.ioctl.GLED(8)
         leds_mask = int.from_bytes(leds_buffer, "little")
         leds = set()
-        for led in (interesting or LedEvent):
+        for led in interesting or LedEvent:
             if (1 << led.value) & leds_mask:
                 leds.add(led)
         return leds
@@ -224,7 +222,7 @@ class Device:
         sounds_buffer = self.ioctl.GSND(2)
         sounds_mask = int.from_bytes(sounds_buffer, "little")
         sounds = set()
-        for snd in (interesting or SndEvent):
+        for snd in interesting or SndEvent:
             if (1 << snd.value) & sounds_mask:
                 sounds.add(snd)
         return sounds
@@ -236,7 +234,7 @@ class Device:
         switches_buffer = self.ioctl.GSW(8)
         switches_mask = int.from_bytes(switches_buffer, "little")
         switches = set()
-        for sw in (interesting or SwEvent):
+        for sw in interesting or SwEvent:
             if (1 << sw.value) & switches_mask:
                 switches.add(sw)
         return switches

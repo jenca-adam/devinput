@@ -54,7 +54,7 @@ def main():
                 ), height * (
                     (touch_y - y_info.minimum) / (y_info.maximum - y_info.minimum)
                 )
-                color = COLORS[index%5]
+                color = COLORS[index % 5]
                 can.create_oval(
                     mapped_x - DOT_RADIUS,
                     mapped_y - DOT_RADIUS,
