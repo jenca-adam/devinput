@@ -99,6 +99,10 @@ def _ioctl_write_factory(nr, source=None, as_int=False):
 
 
 class InputId(ctypes.Structure):
+    _bustype: ctypes.c_uint16
+    vendor: ctypes.c_uint16
+    product: ctypes.c_uint16
+    version: ctypes.c_uint16
     _fields_ = [
         ("_bustype", ctypes.c_uint16),
         ("vendor", ctypes.c_uint16),
@@ -107,11 +111,16 @@ class InputId(ctypes.Structure):
     ]
 
     @property
-    def bus_type(self):
+    def bus_type(self) -> BusType:
         return BusType(self._bustype)
 
 
 class InputKeymapEntry(ctypes.Structure):
+    flags: ctypes.c_uint8
+    len: ctypes.c_uint8
+    index: ctypes.c_uint8
+    keycode: ctypes.c_uint32
+    scancode: ctypes.c_uint8 * 32
     _fields_ = [
         ("flags", ctypes.c_uint8),
         ("len", ctypes.c_uint8),
@@ -122,6 +131,12 @@ class InputKeymapEntry(ctypes.Structure):
 
 
 class InputAbsInfo(ctypes.Structure):
+    value: ctypes.c_int32
+    minimum: ctypes.c_int32
+    maximum: ctypes.c_int32
+    fuzz: ctypes.c_int32
+    flat: ctypes.c_int32
+    resolution: ctypes.c_int32
     _fields_ = [
         ("value", ctypes.c_int32),
         ("minimum", ctypes.c_int32),

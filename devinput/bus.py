@@ -4,6 +4,10 @@ from .utils import UnknownEnumMeta
 
 
 class BusType(enum.IntEnum, metaclass=UnknownEnumMeta):
+    """
+    Bus types (BUS)
+    """
+
     BUS_PCI = 0x01
     BUS_ISAPNP = 0x02
     BUS_USB = 0x03

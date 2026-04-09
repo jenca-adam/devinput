@@ -1,20 +1,25 @@
 import os
+from .ioctl import IoctlInterface
 from .utils import read_file_safe
 from .event_types import *
 
+CapabilityTypeUnion = EventType | EventTypeUnion
 
-def parse_cap(content):
+
+def parse_cap(content: str) -> int:
     hex_code = []
     for word in content.strip().split(" "):
         hex_code.append(f"{word:>016}")  # pad from left with 16 zeroes
     return int("".join(hex_code), 16)
 
 
-def parse_cap_file(filename):
+def parse_cap_file(filename: str) -> int:
     return parse_cap(read_file_safe(filename))
 
 
-def get_cap_set(cap_code, cap_enum):
+def get_cap_set(
+    cap_code: int, cap_enum: type[CapabilityTypeUnion]
+) -> set[CapabilityTypeUnion]:
     cap_set = set()
     for cap in cap_enum:
         if cap_code & (1 << cap.value):
@@ -23,7 +28,29 @@ def get_cap_set(cap_code, cap_enum):
 
 
 class Capabilities:
-    def __init__(self, path, ioctl):
+    abs_path: str
+    ev_path: str
+    ff_path: str
+    key_path: str
+    led_path: str
+    msc_path: str
+    rel_path: str
+    snd_path: str
+    sw_path: str
+
+    abs_cap_code: int
+    event_types_code: int
+    key_cap_code: int
+    led_cap_code: int
+    msc_cap_code: int
+    rel_cap_code: int
+    snd_cap_code: int
+    sw_cap_code: int
+
+    ioctl: IoctlInterface
+    path: str
+
+    def __init__(self, path: str, ioctl: IoctlInterface):
         self.path = path
         self.ioctl = ioctl
 
@@ -51,64 +78,94 @@ class Capabilities:
         ) = self._rel_cap = self._snd_cap = self._sw_cap = self._syn_cap = None
 
         self._syn_cap_code = None
-        self.ioctl = ioctl
 
     @property
-    def abs_cap(self):
+    def abs_cap(self) -> set[AbsEvent]:
+        """
+        All ABS capabilities
+        """
         if self._abs_cap is None:
             self._abs_cap = get_cap_set(self.abs_cap_code, AbsEvent)
         return self._abs_cap
 
     @property
-    def event_types(self):
+    def event_types(self) -> set[EventType]:
+        """
+        All supported event types
+        """
         if self._event_types is None:
             self._event_types = get_cap_set(self.event_types_code, EventType)
         return self._event_types
 
     @property
-    def key_cap(self):
+    def key_cap(self) -> set[KeyEvent]:
+        """
+        All KEY capabilities
+        """
         if self._key_cap is None:
             self._key_cap = get_cap_set(self.key_cap_code, KeyEvent)
         return self._key_cap
 
     @property
-    def led_cap(self):
+    def led_cap(self) -> set[LedEvent]:
+        """
+        All LED capabilities
+        """
         if self._led_cap is None:
             self._led_cap = get_cap_set(self.led_cap_code, LedEvent)
         return self._led_cap
 
     @property
-    def msc_cap(self):
+    def msc_cap(self) -> set[MscEvent]:
+        """
+        All MSC capabilities
+        """
         if self._msc_cap is None:
             self._msc_cap = get_cap_set(self.msc_cap_code, MscEvent)
         return self._msc_cap
 
     @property
-    def rel_cap(self):
+    def rel_cap(self) -> set[RelEvent]:
+        """
+        All REL capabilities
+        """
         if self._rel_cap is None:
             self._rel_cap = get_cap_set(self.rel_cap_code, RelEvent)
         return self._rel_cap
 
     @property
-    def snd_cap(self):
+    def snd_cap(self) -> set[SndEvent]:
+        """
+        All SND capabilities
+        """
         if self._snd_cap is None:
             self._snd_cap = get_cap_set(self.snd_cap_code, SndEvent)
         return self._snd_cap
 
     @property
-    def sw_cap(self):
+    def sw_cap(self) -> set[SwEvent]:
+        """
+        All SW capabilities
+        """
         if self._sw_cap is None:
             self._sw_cap = get_cap_set(self.sw_cap_code, SwEvent)
         return self._sw_cap
 
     @property
-    def syn_cap_code(self):
+    def syn_cap_code(self) -> int:
+        """
+        The bitmask of all SYN capabilities.
+        (the reason this is a property is that it requires an ioctl call)
+        """
         if self._syn_cap_code is None:
             self._syn_cap_code = self._gbit(EventType.EV_SYN)
         return self._syn_cap_code
 
     @property
-    def syn_cap(self):
+    def syn_cap(self) -> set[SynEvent]:
+        """
+        All SYN capabilities
+        """
         if self._syn_cap is None:
             self._syn_cap = get_cap_set(self.syn_cap_code, SynEvent)
         return self._syn_cap
@@ -118,7 +175,12 @@ class Capabilities:
         buf = self.ioctl.GBIT(ev, length)
         return int.from_bytes(buf, "little")
 
-    def has_cap(self, cap):
+    def has_cap(self, cap: CapabilityTypeUnion) -> bool:
+        """
+        Checks for a capability
+
+        :param cap: the capability to check
+        """
         mask = 1 << cap
         if isinstance(cap, SynEvent):
             return bool(mask & self.syn_cap_code)

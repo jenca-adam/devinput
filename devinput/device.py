@@ -4,20 +4,38 @@ import functools
 import ctypes
 import contextlib
 import asyncio
+import typing
 
 from .const import DEVICE_PATH, DEVICE_INFO_PATH, CAPABILITIES_PATH
-from .capabilities import Capabilities
+from .capabilities import Capabilities, CapabilityTypeUnion
 from .utils import read_file_safe
 from .event import Event
-from .ioctl import IoctlInterface, InputKeymapEntry
+from .ioctl import IoctlInterface, InputKeymapEntry, InputId, InputAbsInfo
 from .props import Props
+from .repeat import Repeat
 from .event_types import *
 
 
 class Device:
-    def __init__(self, event_path):
+    closed: bool
+    event_path: str
+    event_code: str
+    info_path: str
+    name_path: str
+    modalias_path: str
+    name: str
+    modalias: str
+    fd: int | None
+    ioctl: IoctlInterface | None
+    input_id: InputId | None
+    grabbed: False
+
+    def __init__(self, event_path: str):
+        """
+        :param event_path: The path to the /dev/input/eventXXX or any symlink to it
+        """
         self.closed = True
-        self.event_path = event_path
+        self.event_path = os.path.realpath(event_path)
         self.event_code = os.path.split(event_path)[-1]
         self.info_path = os.path.join(DEVICE_INFO_PATH, self.event_code)
         if not os.path.exists(self.event_path):
@@ -36,6 +54,7 @@ class Device:
         self.fd = None
         self.ioctl = None
         self.input_id = None
+        self.grabbed = False
 
     @staticmethod
     def _require_open(fun):
@@ -47,7 +66,10 @@ class Device:
 
         return replace
 
-    def open(self):
+    def open(self) -> None:
+        """
+        Opens the device
+        """
         self.closed = False
         try:
             self.fd = os.open(self.event_path, os.O_RDWR)
@@ -63,11 +85,22 @@ class Device:
         )
 
     @_require_open
-    def poll(self, timeout=0.0):
+    def poll(self, timeout: float | int | None = 0.0) -> bool:
+        """
+        Returns `True` if an event is available within a timeout, `False` otherwise.
+
+        :param timeout: timeout for the poll. 0 by default. If set to `None`, waits until an event is available
+        """
         return bool(select.select([self.fd], [], [], timeout)[0])
 
     @_require_open
-    async def poll_async(self, timeout=0.0):
+    async def poll_async(self, timeout: float | int | None = 0.0) -> bool:
+        """
+        Asynchronous. Returns `True` if an event is available within a timeout, `False` otherwise.
+
+        :param timeout: timeout for the poll. 0 by default. If set to `None`, waits until an event is available
+        """
+
         if timeout == 0.0:
             return self.poll(timeout)  # it's okay because it doesn't block
         loop = asyncio.get_event_loop()
@@ -86,62 +119,114 @@ class Device:
         finally:
             loop.remove_reader(self.fd)
 
-    def wait(self):
+    def wait(self) -> None:
+        """
+        Waits until an event is available. Equivalent to `poll(None)`
+        """
         self.poll(None)
 
-    async def wait_async(self):
+    async def wait_async(self) -> None:
+        """
+        Waits asynchronously until an event is available. Equivalent to `poll_async(None)`
+        """
         await self.poll_async(None)
 
     @_require_open
-    def get_event(self):
+    def get_event(self) -> Event:
+        """
+        Reads one event from the device
+        """
         return Event.read(self.fd)
 
     @_require_open
-    def send_event(self, event):
+    def send_event(self, event: Event) -> int:
+        """
+        Sends an event to the device. Returns the number of bytes written
+
+        :param event: the `Event` object to send
+        """
         return event.write(self.fd)
 
     @_require_open
-    def flush(self):
-        while self.poll():
-            self.get_event()
+    def flush(self) -> list[Event]:
+        """
+        Returns a list of all the events since last read.
+        Events are read immediately
+        """
+        return list(self.iter_events())
 
     @_require_open
-    async def get_event_async(self, timeout=None):
+    async def get_event_async(self, timeout: float | int | None = None) -> Event | None:
+        """
+        Reads one event from the device asynchronously. If no event is available within the specified timeout, returns `None`.
+
+        :param timeout: if set to `None`, waits until an event is available
+        """
         try:
             return await Event.read_async(self.fd, timeout)
         except TimeoutError:
             return None
 
     @_require_open
-    async def send_event_async(self, event):
+    async def send_event_async(self, event: Event) -> int:
+        """
+        Sends an event to the device asynchronously. Returns the number of bytes written
+
+        :param event: the `Event` object to send
+        """
         return await event.write_async(self.fd)
 
     @_require_open
-    async def flush_async(self):
+    async def flush_async(self) -> list[Event]:
+        """
+        Returns a list of all the events since last read.
+        Events are read immediately and asynchronously
+        """
+        ev_list = []
         while await self.poll_async():
-            await self.get_event_async()
+            ev_list.append(await self.get_event_async())
+        return ev_list
 
     @_require_open
-    def iter_events(self):
+    def iter_events(self) -> typing.Generator[Event, None, None]:
+        """
+        Returns an iterator over events.
+        Stops when no events are available
+        """
         while self.poll():
             yield self.get_event()
 
     @_require_open
-    async def iter_events_async(self):
+    async def iter_events_async(self) -> typing.AsyncGenerator[Event, None, None]:
+        """
+        Returns an asynchronous iterator over events.
+        Stops when no events are available
+        """
         while await self.poll_async():
             yield await self.get_event_async()
 
     @_require_open
-    def __iter__(self):
+    def __iter__(self) -> typing.Iterator[Event]:
+        """
+        Returns an iterator over events.
+        Iterates forever
+        """
         while True:
             yield self.get_event()
 
     @_require_open
-    async def __aiter__(self):
+    async def __aiter__(self) -> typing.AsyncIterator[Event]:
+        """
+        Returns an asynchronous iterator over events.
+        Iterates forever
+        """
         while True:
             yield await self.get_event_async()
 
     def close(self):
+        """
+        Closes the device
+        """
         if self.fd and not self.closed:
             self.closed = True
             os.close(self.fd)
@@ -166,20 +251,36 @@ class Device:
         self.close()
 
     @property
-    def capabilities(self):
+    def capabilities(self) -> Capabilities:
+        """
+        The device capabilities
+        """
         if self._capabilities is None:
             raise ValueError("device not open yet")
         return self._capabilities
 
     @classmethod
     def from_event(cls, event_code):
+        """
+        Creates a Device object from an event code (e.g. `"event0"` -> `"/dev/input/event0"`)
+        """
         return cls(os.path.join(DEVICE_PATH, event_code))
 
-    def has_cap(self, cap):
+    def has_cap(self, cap: CapabilityTypeUnion) -> bool:
+        """
+        Checks for a device capability
+
+        :param cap: the capability to check
+        """
         return cap in self.capabilities
 
     @_require_open
-    def get_absolute(self, abs_type):
+    def get_absolute(self, abs_type: AbsEvent) -> InputAbsInfo:
+        """
+        Returns information on an absolute event type.
+
+        :param abs_type: the event type to check for. Must be in device capabilities
+        """
         if not self.has_cap(EventType.EV_ABS):
             raise ValueError("device doesn't support absolute events")
         if not self.has_cap(abs_type):
@@ -189,7 +290,15 @@ class Device:
         return self.ioctl.GABS(abs_type)
 
     @_require_open
-    def get_keys(self, interesting=None):
+    def get_keys(
+        self, interesting: typing.Container[KeyEvent] | None = None
+    ) -> set[KeyEvent]:
+        """
+        Returns the currently active keys on a device.
+        `EventType.EV_KEY` must be in device capabilities.
+
+        :param interesting: Only check these keys. If set to `None`, all key events in device capababilities are checked.
+        """
         if not self.has_cap(EventType.EV_KEY):
             raise ValueError("device doesn't support key events")
 
@@ -204,7 +313,16 @@ class Device:
         return keys
 
     @_require_open
-    def get_leds(self, interesting=None):
+    def get_leds(
+        self, interesting: typing.Container[LedEvent] | None = None
+    ) -> set[LedEvent]:
+        """
+        Returns the currently active LEDs on a device.
+        `EventType.EV_LED` must be in device capabilities.
+
+        :param interesting: Only check these LEDs. If set to `None`, all LEDs in device capababilities are checked.
+        """
+
         if not self.has_cap(EventType.EV_LED):
             raise ValueError("device has no LEDs")
         leds_buffer = self.ioctl.GLED(8)
@@ -216,7 +334,15 @@ class Device:
         return leds
 
     @_require_open
-    def get_sounds(self, interesting=None):
+    def get_sounds(
+        self, interesting: typing.Container[SndEvent] | None = None
+    ) -> set[SndEvent]:
+        """
+        Returns the currently active sounds on a device.
+        `EventType.EV_SND` must be in device capabilities.
+
+        :param interesting: Only check these sounds. If set to `None`, all sound events in device capababilities are checked.
+        """
         if not self.has_cap(EventType.EV_SND):
             raise ValueError("device doesn't support sound events")
         sounds_buffer = self.ioctl.GSND(2)
@@ -228,7 +354,15 @@ class Device:
         return sounds
 
     @_require_open
-    def get_switches(self, interesting=None):
+    def get_switches(
+        self, interesting: typing.Container[SwEvent] | None = None
+    ) -> set[SwEvent]:
+        """
+        Returns the currently active switches on a device.
+        `EventType.EV_SW` must be in device capabilities.
+
+        :param interesting: Only check these switches. If set to `None`, all switch events in device capababilities are checked.
+        """
         if not self.has_cap(EventType.EV_SW):
             raise ValueError("device doesn't support switch events")
         switches_buffer = self.ioctl.GSW(8)
@@ -240,7 +374,15 @@ class Device:
         return switches
 
     @_require_open
-    def get_keycode(self, scancode_or_index, by_index=False):
+    def get_keycode(
+        self, scancode_or_index: int | typing.Iterable[int], by_index: bool = False
+    ) -> int:
+        """
+        Gets the keycode from a scancode or index
+
+        :param scancode_or_index: the scancode or index
+        :param by_index: interpret `scancode_or_index` as an index
+        """
         if not self.has_cap(EventType.EV_KEY):
             raise ValueError("device doesn't support key events")
         buffer = bytearray(ctypes.sizeof(InputKeymapEntry))
@@ -252,10 +394,17 @@ class Device:
             entry.scancode = (ctypes.c_uint8 * 32)(*scancode_or_index)
             entry.len = len(scancode_or_index)
         self.ioctl.GKEYCODE_V2(buffer)
-        return entry.keycode
+        return entry.keycode.value
 
     @_require_open
-    def get_multi_touch_values(self, mt_code, num_slots=16):
+    def get_multi_touch_values(
+        self, mt_code: AbsEvent, num_slots: int = 8
+    ) -> list[int]:
+        """
+        Gets the multi-touch values for a given MT event
+
+        :param num_slots: the number of MT slots to extract
+        """
         if not self.has_cap(EventType.EV_ABS):
             raise ValueError("device doesn't support absolute events")
         if not self.has_cap(mt_code):
@@ -265,7 +414,12 @@ class Device:
         return list(self.ioctl.GMTSLOTS(mt_code, num_slots).values)
 
     @_require_open
-    def get_multi_touch_state(self, num_slots=16):
+    def get_multi_touch_state(self, num_slots: int = 8) -> dict[AbsEvent, list[int]]:
+        """
+        Gets the multi-touch values for all MT events in device capabilities
+
+        :param num_slots: the number of MT slots to extract per event
+        """
         available_mt_events = MT_EVENTS & self.capabilities.abs_cap
         if not available_mt_events:
             raise ValueError("no multi-touch events supported on this device")
@@ -275,7 +429,10 @@ class Device:
         return event_slots
 
     @_require_open
-    def get_properties(self):
+    def get_properties(self) -> set[Props]:
+        """
+        Gets device properties and quirks
+        """
         prop_bytes = self.ioctl.GPROP(16)
         prop_mask = int.from_bytes(prop_bytes, "little")
         props = set()
@@ -286,15 +443,28 @@ class Device:
 
     @_require_open
     def grab(self):
-        self.ioctl.GRAB(1)
+        """
+        Grabs device
+        """
+        if not self.grabbed:
+            self.grabbed = True
+            self.ioctl.GRAB(1)
 
     @_require_open
     def ungrab(self):
-        self.ioctl.GRAB(0)
+        """
+        Releases grab on device
+        """
+        if self.grabbed:
+            self.grabbed = False
+            self.ioctl.GRAB(0)
 
     @contextlib.contextmanager
     @_require_open
-    def grabbed(self):
+    def grabbed(self) -> Iterator[None]:
+        """
+        A context manager for device grabbing. On enter, `grab()` is called. On exit, `ungrab() is called.
+        """
         try:
             yield self.grab()
         finally:
@@ -303,7 +473,11 @@ class Device:
     ### No force feedback for now, since I have no device to test it on.
 
 
-def list_devices():
+def list_devices() -> list[Device]:
+    """
+    Lists all devices.
+    Devices are returned closed.
+    """
     device_list = []
     for device in os.listdir(DEVICE_PATH):
         if device.startswith("event"):
@@ -311,7 +485,11 @@ def list_devices():
     return device_list
 
 
-def list_capable_devices(*caps):
+def list_capable_devices(*caps: CapabilityTypeUnion) -> list[Device]:
+    """
+    List all devices with all the given capabilities.
+    Devices are returned closed.
+    """
     device_list = []
     for device in list_devices():
         with device:

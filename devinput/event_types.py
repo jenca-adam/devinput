@@ -1,8 +1,17 @@
+"""
+Some huge enums.
+Taken from https://elixir.bootlin.com/linux/v4.3/source/include/uapi/linux/input.h
+"""
+
 import enum
 from .utils import UnknownEnumMeta
 
 
 class SynEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
+    """
+    Synchronisation events (SYN)
+    """
+
     SYN_REPORT = 0
     SYN_CONFIG = 1
     SYN_MT_REPORT = 2
@@ -10,6 +19,10 @@ class SynEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
 
 
 class KeyEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
+    """
+    Key and button events (KEY)
+    """
+
     KEY_RESERVED = 0
     KEY_ESC = 1
     KEY_1 = 2
@@ -752,6 +765,10 @@ class KeyEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
 
 
 class RelEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
+    """
+    Relative axes (REL)
+    """
+
     REL_X = 0x00
     REL_Y = 0x01
     REL_Z = 0x02
@@ -773,6 +790,10 @@ class RelEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
 
 
 class AbsEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
+    """
+    Absolute axes (ABS)
+    """
+
     ABS_X = 0x00
     ABS_Y = 0x01
     ABS_Z = 0x02
@@ -831,6 +852,9 @@ class AbsEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
 
 
 class SwEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
+    """
+    Switch events (SW)
+    """
 
     SW_LID = 0x00  # set = lid shut
     SW_TABLET_MODE = 0x01  # set = tablet mode
@@ -853,6 +877,10 @@ class SwEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
 
 
 class LedEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
+    """
+    LEDs (LED)
+    """
+
     LED_NUML = 0x00
     LED_CAPSL = 0x01
     LED_SCROLLL = 0x02
@@ -867,6 +895,10 @@ class LedEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
 
 
 class MscEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
+    """
+    Misc events (MSC)
+    """
+
     MSC_SERIAL = 0x00
     MSC_PULSELED = 0x01
     MSC_GESTURE = 0x02
@@ -876,12 +908,29 @@ class MscEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
 
 
 class SndEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
+    """
+    Sound events (SND)
+    """
+
     SND_CLICK = 0x00
     SND_BELL = 0x01
     SND_TONE = 0x02
 
 
+class Repeat(enum.IntEnum, metaclass=UnknownEnumMeta):
+    """
+    Repeat events (REP)
+    """
+
+    REP_DELAY = 0x00
+    REP_PERIOD = 0x01
+
+
 class EventType(enum.IntEnum, metaclass=UnknownEnumMeta):
+    """
+    Event types (EV)
+    """
+
     EV_SYN = 0x00
     EV_KEY = 0x01
     EV_REL = 0x02
@@ -896,11 +945,6 @@ class EventType(enum.IntEnum, metaclass=UnknownEnumMeta):
     EV_FF_STATUS = 0x17
 
 
-class UnknownEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
-    _ = -1
-    pass
-
-
 EVENT_TYPES = {
     0x00: SynEvent,
     0x01: KeyEvent,
@@ -910,6 +954,7 @@ EVENT_TYPES = {
     0x05: SwEvent,
     0x11: LedEvent,
     0x12: SndEvent,
+    0x14: RepEvent,
 }
 
 EVENT_ENUMS = {
@@ -921,6 +966,7 @@ EVENT_ENUMS = {
     SwEvent: EventType.EV_SW,
     LedEvent: EventType.EV_LED,
     SndEvent: EventType.EV_SND,
+    RepEvent: EventType.EV_REP,
 }
 
 MT_EVENTS = {
@@ -939,3 +985,7 @@ MT_EVENTS = {
     AbsEvent.ABS_MT_TOOL_X,
     AbsEvent.ABS_MT_TOOL_Y,
 }
+
+EventTypeUnion = (
+    SynEvent | KeyEvent | RelEvent | AbsEvent | MscEvent | SwEvent | LedEvent | SndEvent
+)
