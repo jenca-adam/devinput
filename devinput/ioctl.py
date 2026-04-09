@@ -2,7 +2,6 @@ import enum
 import ctypes
 import functools
 import fcntl
-import _ctypes
 
 from .bus import BusType
 

@@ -2,6 +2,7 @@ import ctypes
 import datetime
 import os
 import time
+import asyncio
 
 from .event_types import *
 
@@ -51,8 +52,39 @@ class Event(ctypes.Structure):
         buf = os.read(fd, ctypes.sizeof(cls))
         return cls.from_buffer_copy(buf)
 
+    @classmethod
+    async def read_async(cls, fd, timeout=None):
+        loop = asyncio.get_event_loop()
+        future = asyncio.Future()
+        length = ctypes.sizeof(cls)
+
+        def callback():
+            future.set_result(os.read(fd, length))
+
+        loop.add_reader(fd, callback)
+        try:
+            await asyncio.wait_for(future, timeout)
+        finally:
+            loop.remove_reader(fd)
+        return cls.from_buffer_copy(future.result())
+
     def write(self, fd):
         return os.write(fd, bytes(self))
+
+    async def write_async(self, fd, timeout=None):
+
+        loop = asyncio.get_event_loop()
+        future = asyncio.Future()
+
+        def callback(*_):
+            future.set_result(None)
+
+        loop.add_reader(fd, callback)
+        try:
+            await asyncio.wait_for(future, timeout)
+            os.write(fd, bytes(self))
+        finally:
+            loop.remove_reader(fd)
 
     def __repr__(self):
         return f"<Event type={self.type!r} code={self.code!r} value={self.value}>"

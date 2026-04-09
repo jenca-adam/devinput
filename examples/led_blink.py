@@ -1,6 +1,7 @@
 import devinput
 import time
 
+
 def main():
     led_devices = devinput.list_capable_devices([devinput.EventType.EV_LED])
     if not led_devices:
@@ -10,11 +11,11 @@ def main():
         print(f"{index+1}) {dev.name}")
     while True:
         try:
-            index = int(input("Pick a device: "))-1
+            index = int(input("Pick a device: ")) - 1
         except ValueError:
             print("Please enter a number.")
             continue
-        if not 0<=index<len(led_devices):
+        if not 0 <= index < len(led_devices):
             print("Please enter a valid index.")
             continue
         break
@@ -26,11 +27,11 @@ def main():
             print(f"{index+1}) {cap.name}")
         while True:
             try:
-                index = int(input("Pick a LED: "))-1
+                index = int(input("Pick a LED: ")) - 1
             except ValueError:
                 print("Please enter a number.")
                 continue
-            if not 0<=index<len(leds):
+            if not 0 <= index < len(leds):
                 print("Please enter a valid index.")
                 continue
             break
@@ -38,8 +39,9 @@ def main():
         on = 1
         while True:
             device.send_event(devinput.Event(led, on))
-            on=1-on
+            on = 1 - on
             time.sleep(0.1)
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     main()

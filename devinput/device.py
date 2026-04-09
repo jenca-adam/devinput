@@ -3,6 +3,7 @@ import select
 import functools
 import ctypes
 import contextlib
+import asyncio
 
 from .const import DEVICE_PATH, DEVICE_INFO_PATH, CAPABILITIES_PATH
 from .capabilities import Capabilities
@@ -25,15 +26,16 @@ class Device:
         self.modalias_path = os.path.join(self.info_path, "device", "modalias")
         try:
             self.name = read_file_safe(self.name_path).strip()
-        except:
+        except IOError:
             self.name = None
         try:
             self.modalias = read_file_safe(self.modalias_path).strip()
-        except:
+        except IOError:
             self.modalias = None
         self._capabilities = None
         self.fd = None
         self.ioctl = None
+        self.input_id = None
 
     @staticmethod
     def _require_open(fun):
@@ -55,6 +57,7 @@ class Device:
             ) from err
 
         self.ioctl = IoctlInterface(self.fd)
+        self.input_id = self.ioctl.GID()
         self._capabilities = Capabilities(
             os.path.join(self.info_path, CAPABILITIES_PATH), self.ioctl
         )
@@ -63,8 +66,31 @@ class Device:
     def poll(self, timeout=0.0):
         return bool(select.select([self.fd], [], [], timeout)[0])
 
+    @_require_open
+    async def poll_async(self, timeout=0.0):
+        if timeout == 0.0:
+            return self.poll(timeout)  # it's okay because it doesn't block
+        loop = asyncio.get_event_loop()
+        future = asyncio.Future()
+
+        def callback():
+            if not future.done():
+                future.set_result(None)
+
+        loop.add_reader(self.fd, callback)
+        try:
+            await asyncio.wait_for(future, timeout)
+            return True
+        except TimeoutError:
+            return False
+        finally:
+            loop.remove_reader(self.fd)
+
     def wait(self):
         self.poll(None)
+
+    async def wait_async(self):
+        await self.poll_async(None)
 
     @_require_open
     def get_event(self):
@@ -74,13 +100,51 @@ class Device:
     def send_event(self, event):
         return event.write(self.fd)
 
+    @_require_open
+    def flush(self):
+        while self.poll():
+            self.get_event()
+
+    @_require_open
+    async def get_event_async(self, timeout=None):
+        try:
+            return await Event.read_async(self.fd, timeout)
+        except TimeoutError:
+            return None
+
+    @_require_open
+    async def send_event_async(self, event):
+        return await event.write_async(self.fd)
+
+    @_require_open
+    async def flush_async(self):
+        while await self.poll_async():
+            await self.get_event_async()
+
+    @_require_open
     def iter_events(self):
         while self.poll():
             yield self.get_event()
 
+    @_require_open
+    async def iter_events_async(self):
+        while await self.poll_async():
+            yield await self.get_event_async()
+
+    @_require_open
+    def __iter__(self):
+        while True:
+            yield self.get_event()
+
+    @_require_open
+    async def __aiter__(self):
+        while True:
+            yield await self.get_event_async()
+
     def close(self):
-        self.closed = True
-        os.close(self.fd)
+        if self.fd and not self.closed:
+            self.closed = True
+            os.close(self.fd)
 
     def __repr__(self):
         return f"<Device {self.name!r} ({self.event_path})>"
@@ -125,7 +189,7 @@ class Device:
         return self.ioctl.GABS(abs_type)
 
     @_require_open
-    def get_keys(self):
+    def get_keys(self, interesting=None):
         if not self.has_cap(EventType.EV_KEY):
             raise ValueError("device doesn't support key events")
 
@@ -135,44 +199,44 @@ class Device:
         for (
             key
         ) in (
-            self.capabilities.key_cap
+            interesting or self.capabilities.key_cap
         ):  # it's not efficient to iterate through all 700 keys
             if (1 << key.value) & keys_mask:
                 keys.add(key)
         return keys
 
     @_require_open
-    def get_leds(self):
+    def get_leds(self, interesting=None):
         if not self.has_cap(EventType.EV_LED):
             raise ValueError("device has no LEDs")
         leds_buffer = self.ioctl.GLED(8)
         leds_mask = int.from_bytes(leds_buffer, "little")
         leds = set()
-        for led in LedEvent:
+        for led in (interesting or LedEvent):
             if (1 << led.value) & leds_mask:
                 leds.add(led)
         return leds
 
     @_require_open
-    def get_sounds(self):
+    def get_sounds(self, interesting=None):
         if not self.has_cap(EventType.EV_SND):
             raise ValueError("device doesn't support sound events")
         sounds_buffer = self.ioctl.GSND(2)
         sounds_mask = int.from_bytes(sounds_buffer, "little")
         sounds = set()
-        for snd in SndEvent:
+        for snd in (interesting or SndEvent):
             if (1 << snd.value) & sounds_mask:
                 sounds.add(snd)
         return sounds
 
     @_require_open
-    def get_switches(self):
+    def get_switches(self, interesting=None):
         if not self.has_cap(EventType.EV_SW):
             raise ValueError("device doesn't support switch events")
         switches_buffer = self.ioctl.GSW(8)
         switches_mask = int.from_bytes(switches_buffer, "little")
         switches = set()
-        for sw in SwEvent:
+        for sw in (interesting or SwEvent):
             if (1 << sw.value) & switches_mask:
                 switches.add(sw)
         return switches
@@ -249,7 +313,7 @@ def list_devices():
     return device_list
 
 
-def list_capable_devices(caps):
+def list_capable_devices(*caps):
     device_list = []
     for device in list_devices():
         with device:

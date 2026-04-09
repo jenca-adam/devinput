@@ -1,7 +1,5 @@
 import os
-import enum
 from .utils import read_file_safe
-from . import ioctl
 from .event_types import *
 
 
@@ -124,21 +122,21 @@ class Capabilities:
         mask = 1 << cap
         if isinstance(cap, SynEvent):
             return bool(mask & self.syn_cap_code)
-        elif isinstance(cap, KeyEvent):
+        if isinstance(cap, KeyEvent):
             return bool(mask & self.key_cap_code)
-        elif isinstance(cap, RelEvent):
+        if isinstance(cap, RelEvent):
             return bool(mask & self.rel_cap_code)
-        elif isinstance(cap, AbsEvent):
+        if isinstance(cap, AbsEvent):
             return bool(mask & self.abs_cap_code)
-        elif isinstance(cap, MscEvent):
+        if isinstance(cap, MscEvent):
             return bool(mask & self.msc_cap_code)
-        elif isinstance(cap, SwEvent):
+        if isinstance(cap, SwEvent):
             return bool(mask & self.sw_cap_code)
-        elif isinstance(cap, LedEvent):
+        if isinstance(cap, LedEvent):
             return bool(mask & self.led_cap_code)
-        elif isinstance(cap, SndEvent):
+        if isinstance(cap, SndEvent):
             return bool(mask & self.snd_cap_code)
-        elif isinstance(cap, EventType):
+        if isinstance(cap, EventType):
             return bool(mask & self.event_types_code)
         return False
 
