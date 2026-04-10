@@ -23,7 +23,10 @@ class Event(ctypes.Structure):
         ("value", ctypes.c_uint),
     ]
     value: int
-    def __init__(self, code: EventTypeUnion, value: int, timestamp: float | None = None):
+
+    def __init__(
+        self, code: EventTypeUnion, value: int, timestamp: float | None = None
+    ):
         timestamp = timestamp or time.time()
         self._tv_sec = time_t(int(timestamp))
         self._tv_usec = time_t(int((timestamp - self._tv_sec) * 1_000_000))
