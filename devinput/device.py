@@ -488,7 +488,7 @@ class Device:
     @_require_open
     def grabbed(self) -> Iterator[None]:
         """
-        A context manager for device grabbing. On enter, `grab()` is called. On exit, `ungrab() is called.
+        A context manager for device grabbing. On enter, `grab()` is called. On exit, `ungrab()` is called.
         """
         try:
             yield self.grab()
