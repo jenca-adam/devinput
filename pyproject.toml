@@ -5,11 +5,31 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 packages = ["devinput"]
 
-
-
 [project]
 name = "devinput"
 version = "0.0.1"
 description = "A low-level Python library to read from and write to /dev/input devices"
- 
 
+authors = [
+    {name = "Adam Jenča", email = "jenca.adam@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.10.0"
+license = "MIT"
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14"   
+]
+
+[project.urls]
+Homepage = "https://github.com/jenca-adam/devinput"
+Bug_Tracker = "https://github.com/jenca-adam/devinput/issues"
+PyPI = "https://pypi.org/project/devinput"
