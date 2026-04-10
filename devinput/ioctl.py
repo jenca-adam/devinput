@@ -115,6 +115,13 @@ class InputId(ctypes.Structure):
         return BusType(self._bustype)
 
 
+class RepeatSettings(ctypes.Structure):
+    delay: ctypes.c_uint32
+    period: ctypes.c_uint32
+
+    _fields_ = [("delay", ctypes.c_uint32), ("period", ctypes.c_uint32)]
+
+
 class InputKeymapEntry(ctypes.Structure):
     flags: ctypes.c_uint8
     len: ctypes.c_uint8
@@ -239,7 +246,7 @@ class IoctlInterface:
     def GID(self):
         pass
 
-    @_ioctl_read_factory(0x03, ctypes.c_uint * 2)
+    @_ioctl_read_factory(0x03, RepeatSettings)
     def GREP(self):
         pass
 
@@ -284,7 +291,7 @@ class IoctlInterface:
     def GSW(self, size):
         pass
 
-    @_ioctl_write_factory(0x03, ctypes.c_uint * 2)
+    @_ioctl_write_factory(0x03, RepeatSettings)
     def SREP(self, what):
         pass
 

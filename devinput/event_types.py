@@ -917,7 +917,7 @@ class SndEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
     SND_TONE = 0x02
 
 
-class Repeat(enum.IntEnum, metaclass=UnknownEnumMeta):
+class RepEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
     """
     Repeat events (REP)
     """
@@ -925,7 +925,8 @@ class Repeat(enum.IntEnum, metaclass=UnknownEnumMeta):
     REP_DELAY = 0x00
     REP_PERIOD = 0x01
 
-
+class UnknownEvent(enum.IntEnum, metaclass=UnknownEnumMeta):
+    _=-1
 class EventType(enum.IntEnum, metaclass=UnknownEnumMeta):
     """
     Event types (EV)
@@ -943,7 +944,6 @@ class EventType(enum.IntEnum, metaclass=UnknownEnumMeta):
     EV_FF = 0x15
     EV_PWR = 0x16
     EV_FF_STATUS = 0x17
-
 
 EVENT_TYPES = {
     0x00: SynEvent,

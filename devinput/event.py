@@ -20,24 +20,20 @@ class Event(ctypes.Structure):
         ("_tv_usec", time_t),
         ("_type", ctypes.c_ushort),
         ("_code", ctypes.c_ushort),
-        ("_value", ctypes.c_uint),
+        ("value", ctypes.c_uint),
     ]
-
-    def __init__(self, code: EventTypeUnion, value: int, timestap: float | None = None):
+    value: int
+    def __init__(self, code: EventTypeUnion, value: int, timestamp: float | None = None):
         timestamp = timestamp or time.time()
         self._tv_sec = time_t(int(timestamp))
-        self._tv_usec = time_t(int((timestamp - self.tv_sec) * 1_000_000))
+        self._tv_usec = time_t(int((timestamp - self._tv_sec) * 1_000_000))
         self._type = ctypes.c_ushort(EVENT_ENUMS[code.__class__].value)
         self._code = ctypes.c_ushort(code.value)
-        self._value = ctypes.c_uint(value)
-
-    @property
-    def value(self) -> int:
-        return self.value
+        self.value = value
 
     @property
     def timestamp(self) -> float:
-        return self.tv_sec + self.tv_usec / 1_000_000
+        return self._tv_sec + self._tv_usec / 1_000_000
 
     @property
     def datetime(self) -> datetime.datetime:

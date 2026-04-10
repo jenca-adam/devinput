@@ -10,9 +10,14 @@ from .const import DEVICE_PATH, DEVICE_INFO_PATH, CAPABILITIES_PATH
 from .capabilities import Capabilities, CapabilityTypeUnion
 from .utils import read_file_safe
 from .event import Event
-from .ioctl import IoctlInterface, InputKeymapEntry, InputId, InputAbsInfo
+from .ioctl import (
+    IoctlInterface,
+    InputKeymapEntry,
+    InputId,
+    InputAbsInfo,
+    RepeatSettings,
+)
 from .props import Props
-from .repeat import Repeat
 from .event_types import *
 
 
@@ -28,7 +33,7 @@ class Device:
     fd: int | None
     ioctl: IoctlInterface | None
     input_id: InputId | None
-    grabbed: False
+    is_grabbed: False
 
     def __init__(self, event_path: str):
         """
@@ -54,7 +59,7 @@ class Device:
         self.fd = None
         self.ioctl = None
         self.input_id = None
-        self.grabbed = False
+        self.is_grabbed = False
 
     @staticmethod
     def _require_open(fun):
@@ -429,6 +434,26 @@ class Device:
         return event_slots
 
     @_require_open
+    def get_repeat_settings(self) -> RepeatSettings:
+        """
+        Gets repeat settings for the device.
+        EventTypes.EV_REP must be in device capabilities
+        """
+        if not self.has_cap(EventType.EV_REP):
+            raise ValueError("no repeat events supported on this device")
+        return self.ioctl.GREP()
+
+    @_require_open
+    def set_repeat_settings(self, settings: RepeatSettings):
+        """
+        Sets repeat settings for the device.
+        EventTypes.EV_REP must be in device capabilities
+        """
+        if not self.has_cap(EventType.EV_REP):
+            raise ValueError("no repeat events supported on this device")
+        self.ioctl.SREP(settings)
+
+    @_require_open
     def get_properties(self) -> set[Props]:
         """
         Gets device properties and quirks
@@ -446,8 +471,8 @@ class Device:
         """
         Grabs device
         """
-        if not self.grabbed:
-            self.grabbed = True
+        if not self.is_grabbed:
+            self.is_grabbed = True
             self.ioctl.GRAB(1)
 
     @_require_open
@@ -455,8 +480,8 @@ class Device:
         """
         Releases grab on device
         """
-        if self.grabbed:
-            self.grabbed = False
+        if self.is_grabbed:
+            self.is_grabbed = False
             self.ioctl.GRAB(0)
 
     @contextlib.contextmanager

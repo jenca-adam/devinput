@@ -3,7 +3,7 @@ import time
 
 
 def main():
-    led_devices = devinput.list_capable_devices([devinput.EventType.EV_LED])
+    led_devices = devinput.list_capable_devices(devinput.EventType.EV_LED)
     if not led_devices:
         raise ValueError("no devices have LEDs")
     print("Available LED Devices:")
