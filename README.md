@@ -2,7 +2,11 @@
 
 **devinput** is a low-level library to read, write and manage Linux input devices with async IO support.
 
-## Overview
+## Installation
+```
+pip install devinput
+```
+## Usage
 
 ### Listing devices
 
