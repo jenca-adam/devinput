@@ -202,5 +202,24 @@ class Capabilities:
             return bool(mask & self.event_types_code)
         return False
 
+    def list(self, cap_type: EventType) -> set[EventTypeUnion]:
+        if cap_type == EventType.EV_SYN:
+            return self.syn_cap
+        if cap_type == EventType.EV_KEY:
+            return self.key_cap
+        if cap_type == EventType.EV_REL:
+            return self.rel_cap
+        if cap_type == EventType.EV_ABS:
+            return self.abs_cap
+        if cap_type == EventType.EV_MSC:
+            return self.msc_cap
+        if cap_type == EventType.EV_SW:
+            return self.sw_cap
+        if cap_type == EventType.EV_LED:
+            return self.led_cap
+        if cap_type == EventType.EV_SND:
+            return self.snd_cap
+        return set()
+
     def __contains__(self, cap):
         return self.has_cap(cap)
