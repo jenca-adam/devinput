@@ -2,7 +2,10 @@ import enum
 from .utils import UnknownEnumMeta
 
 
-class Props(enum.Enum, metaclass=UnknownEnumMeta):
+class Props(enum.IntEnum, metaclass=UnknownEnumMeta):
+    """
+    Device properties and quirks
+    """
     INPUT_PROP_POINTER = 0x00  # needs a pointer
     INPUT_PROP_DIRECT = 0x01  # direct input devices
     INPUT_PROP_BUTTONPAD = 0x02  # has button(s) under pad

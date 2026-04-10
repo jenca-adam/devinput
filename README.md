@@ -110,4 +110,6 @@ with dev:
 
 Check out the [examples](https://github.com/jenca-adam/devinput/tree/main/examples) on GitHub for more complex usage.
 
+## Docs
 
+[API docs](https://devinput.readthedocs.io/en/latest/devinput.html)

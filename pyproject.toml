@@ -10,6 +10,6 @@ packages = ["devinput"]
 [project]
 name = "devinput"
 version = "0.0.1"
-description = "read /dev/input devices"
+description = "A low-level Python library to read from and write to /dev/input devices"
  
 
