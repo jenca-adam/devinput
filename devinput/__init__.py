@@ -4,4 +4,5 @@ from .device import (
     list_capable_devices as list_capable_devices,
 )
 from .event import Event
+from . import props, mt_tool
 from .event_types import *
